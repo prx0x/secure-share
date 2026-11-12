@@ -17,10 +17,6 @@ interface UploadSignature {
   folder?: string
 }
 
-interface CloudinaryUploadResponse {
-  public_id: string
-}
-
 async function uploadToCloudinary(
   file: File,
   signature: UploadSignature,
