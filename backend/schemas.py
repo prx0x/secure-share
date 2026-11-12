@@ -72,3 +72,11 @@ class FilePermissionUpdate(BaseModel):
 class GroupPermissionUpdate(BaseModel):
     group_id: int
     permission: Literal["READ", "WRITE", "DELETE"]
+
+class UploadSignatureRequest(BaseModel):
+    filename: str = Field(min_length=1, max_length=50)
+    size: int = Field(gt=0, le=10_000_000)
+
+class UploadCompleteRequest(BaseModel):
+    filename: str = Field(min_length=1, max_length=50)
+    public_id: str = Field(min_length=1, max_length=500)

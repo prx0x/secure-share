@@ -106,7 +106,7 @@ def authorize_file_access(
     ).all()
 
     group_ids = [membership.group_id for membership in memberships]
-
+    group_permission = None
     if group_ids:
         group_permission = db.query(
             models.FileGroupPermission

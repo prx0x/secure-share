@@ -113,7 +113,7 @@ export function FilesPage() {
   const handleUpdatePick = async (file: File | null) => {
     if (!updateFile || !file) return
     if (file.size > MAX_UPLOAD_BYTES) {
-      toast('File is too large. Maximum allowed size is 20 MB.', 'error')
+      toast('File is too large. Maximum allowed size is 10 MB.', 'error')
       return
     }
     if (file.name.length > MAX_FILENAME_LENGTH) {

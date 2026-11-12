@@ -44,7 +44,7 @@ function friendlyMessage(status: number, detail: unknown): string {
   if (status === 403) return detailText || "You don't have permission to perform this action."
   if (status === 404) return detailText || 'The requested file or resource was not found.'
   if (status === 409) return detailText || 'This permission or resource already exists.'
-  if (status === 413) return detailText || 'File is too large. Maximum allowed size is 20 MB.'
+  if (status === 413) return detailText || 'File is too large. Maximum allowed size is 10 MB.'
   if (status === 422) return detailText || 'Please check the information you entered.'
   if (status === 400) return detailText || 'Please check the information you entered.'
   if (detailText) return detailText

@@ -59,8 +59,7 @@ def create_upload_signature(
     params = {
         "timestamp": int(time.time()),
         "public_id": public_id,
-        "type": DELIVERY_TYPE,
-        "overwrite": False,
+	"type": DELIVERY_TYPE,
     }
 
     if FOLDER_MODE == "dynamic":

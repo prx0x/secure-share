@@ -2,10 +2,15 @@ from fastapi import FastAPI, Depends, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import os
-import shutil
-from fastapi.responses import FileResponse as FastAPIFileResponse
 import uuid
-
+from storage import (
+    create_upload_signature,
+    verify_uploaded_asset,
+    encode_storage_path,
+    decode_storage_path,
+    generate_download_url,
+    delete_asset,
+)
 from database import engine, Base, get_db
 from schemas import (UserCreate, 
                      UserLogin,
@@ -22,28 +27,36 @@ from schemas import (UserCreate,
                      GroupPermissionRevoke, 
                      FilePermissionRevoke, 
                      GroupPermissionUpdate, 
-                     FilePermissionUpdate
-                     )
+                     FilePermissionUpdate,
+                     UploadSignatureRequest,
+		     UploadCompleteRequest,
+ )
 from security import hash_password, verify_password, create_access_token, get_current_user, authorize_file_access, create_audit_log
 import models
 
 app = FastAPI()
 
 # Required for browser frontend (Vite on :5173) to call this API.
+frontend_origins = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv("FRONTEND_ORIGINS", "").split(",")
+    if origin.strip()
+]
+
+allowed_origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    *frontend_origins,
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    ],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-os.makedirs("../storage", exist_ok=True)
-
-Base.metadata.create_all(bind=engine)
 
 @app.get("/")
 def root():
@@ -67,38 +80,47 @@ def create_user(
     return new_user
 
 MAX_FILE_SIZE = 20*1024*1024
-@app.post("/files/upload", response_model=FileResponse)
-async def file_upload(
-        file: UploadFile = File (...),
-        current_user: int = Depends(get_current_user),
-        db: Session = Depends(get_db)
-        ):
-    if not file.filename:
-        raise HTTPException(
-                status_code = 400,
-                detail = "Invalid filename"
+#generate upload signature
+@app.post("/files/upload/signature")
+def get_upload_signature(
+    payload: UploadSignatureRequest,
+    current_user: int = Depends(get_current_user),
+):
+    try:
+        return create_upload_signature(
+            current_user,
+            payload.filename,
+            purpose="upload",
         )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
-    storage_name = str(uuid.uuid4())
-    storage_path = f"../storage/{storage_name}"
-
-    contents = await file.read()
-
-    if len(contents) > MAX_FILE_SIZE:
-        raise HTTPException(
-                status_code = 413,
-                detail = "File too large. Maximum size is 20MB."
+#confirm and save the uploaded file
+@app.post("/files/upload/complete", response_model=FileResponse)
+def complete_upload(
+    payload: UploadCompleteRequest,
+    current_user: int = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    try:
+        resource = verify_uploaded_asset(
+            current_user,
+            payload.public_id,
+            purpose="upload",
         )
-
-    # Write the bytes already read — file.file is exhausted after await file.read().
-    with open(storage_path, "wb") as buffer:
-        buffer.write(contents)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not verify the uploaded file",
+        )
 
     new_file = models.File(
-            filename = file.filename,
-            storage_path = storage_path,
-            owner_id = current_user
-        )
+        filename=payload.filename,
+        storage_path=encode_storage_path(resource["public_id"]),
+        owner_id=current_user,
+    )
 
     db.add(new_file)
     db.commit()
@@ -109,7 +131,7 @@ async def file_upload(
         current_user,
         "UPLOAD",
         "FILE",
-        new_file.id
+        new_file.id,
     )
 
     return new_file
@@ -193,28 +215,37 @@ def list_files(
 def download_file(
     file_id: int,
     current_user: int = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
 ):
     file = authorize_file_access(
-            current_user,
-            file_id,
-            "READ",
-            db
+        current_user,
+        file_id,
+        "READ",
+        db,
     )
+
+    try:
+        public_id = decode_storage_path(file.storage_path)
+
+        download_url = generate_download_url(
+            public_id,
+            file.filename,
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not generate download URL",
+        )
 
     create_audit_log(
         db,
         current_user,
         "DOWNLOAD",
         "FILE",
-        file_id
+        file_id,
     )
 
-    return FastAPIFileResponse(
-            path = file.storage_path,
-            filename = file.filename
-    )
-
+    return {"download_url": download_url}
 
 @app.post("/login")
 def login(
@@ -464,8 +495,23 @@ def delete_file(
 
     import os
 
-    if os.path.exists(file.storage_path):
-        os.remove(file.storage_path)
+    try:
+        public_id = decode_storage_path(file.storage_path)
+        result = delete_asset(public_id)
+
+        if result.get("result") not in ("ok", "not found"):
+            raise HTTPException(
+                status_code=502,
+                detail="Could not delete the Cloudinary asset",
+            )
+
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not delete the Cloudinary asset",
+        )
 
     create_audit_log(
         db,
@@ -482,34 +528,83 @@ def delete_file(
         "message": "File deleted successfully"
     }
 
-@app.put("/files/{file_id}")
-def update_file(
+@app.post("/files/{file_id}/update/signature")
+def get_update_signature(
     file_id: int,
-    file: UploadFile = File(...),
+    payload: UploadSignatureRequest,
     current_user: int = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+):
+    authorize_file_access(
+        current_user,
+        file_id,
+        "WRITE",
+        db,
+    )
+
+    return create_upload_signature(
+        current_user,
+        payload.filename,
+        purpose="update",
+        file_id=file_id,
+    )
+
+@app.post("/files/{file_id}/update/complete")
+def complete_update(
+    file_id: int,
+    payload: UploadCompleteRequest,
+    current_user: int = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
     existing_file = authorize_file_access(
         current_user,
         file_id,
         "WRITE",
-        db
+        db,
     )
 
-    with open(existing_file.storage_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    try:
+        resource = verify_uploaded_asset(
+            current_user,
+            payload.public_id,
+            purpose="update",
+            file_id=file_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not verify replacement file",
+        )
+
+    old_public_id = decode_storage_path(
+        existing_file.storage_path
+    )
+
+    existing_file.filename = payload.filename
+    existing_file.storage_path = encode_storage_path(
+        resource["public_id"]
+    )
+
+    db.commit()
+    db.refresh(existing_file)
 
     create_audit_log(
         db,
         current_user,
         "UPDATE",
         "FILE",
-        file_id
+        file_id,
     )
 
-    return {
-        "message": "File updated successfully"
-    }
+    # Delete the old asset only after the database points to the new one.
+    try:
+        delete_asset(old_public_id)
+    except Exception:
+        pass
+
+    return {"message": "File updated successfully"}
 
 @app.delete("/files/{file_id}/share/user")
 def revoke_user_permission(

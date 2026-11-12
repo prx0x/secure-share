@@ -17,7 +17,7 @@ export function UploadZone({ onUpload, uploading }: UploadZoneProps) {
   const validate = useCallback((file: File | null) => {
     if (!file) return null
     if (file.size > MAX_UPLOAD_BYTES) {
-      return 'File is too large. Maximum allowed size is 20 MB.'
+      return 'File is too large. Maximum allowed size is 10 MB.'
     }
     if (file.name.length > MAX_FILENAME_LENGTH) {
       return `Filename must be ${MAX_FILENAME_LENGTH} characters or fewer.`
@@ -79,7 +79,7 @@ export function UploadZone({ onUpload, uploading }: UploadZoneProps) {
         <div>
           <p className="font-semibold">Drag and drop a file here</p>
           <p className="mt-1 text-sm text-[var(--color-ink-muted)]">
-            or click to select · max 20 MB · filename max {MAX_FILENAME_LENGTH} characters
+            or click to select · max 10 MB · filename max {MAX_FILENAME_LENGTH} characters
           </p>
         </div>
         <input
