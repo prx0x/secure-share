@@ -1,388 +1,392 @@
 # SecureShare
 
-**SecureShare** is a file-sharing application built around user accounts, group-based collaboration, and permission-controlled access. It lets users upload and manage files, share them with other users or groups, and control what recipients are allowed to do.
+A secure file-sharing platform built with **React, TypeScript, FastAPI, and PostgreSQL**, featuring user authentication, group collaboration, and permission-based access control.
 
 <p align="center">
-  <a href="https://secure-share-brown.vercel.app">Live Website</a>
-  ·
-  <a href="https://github.com/prx0x/secure-share">Source Code</a>
+  <a href="https://secure-share-brown.vercel.app"><strong>Live Demo</strong></a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/prx0x/secure-share"><strong>GitHub Repository</strong></a>
 </p>
 
-## Deployment Status
+---
 
-The live website is currently deployed from the **`deploy/vercel-cloudinary-neon`** branch.
+## About
 
-The default **`main`** branch contains the original application implementation, which uses local filesystem storage for uploaded files. The deployment branch contains the storage and configuration changes required for the hosted version, including Cloudinary-backed file storage and deployment-specific environment configuration.
+SecureShare provides a centralized platform for managing and sharing files with granular access permissions.
 
-The branches are intentionally documented separately here: the local setup and architecture below describe **`main`**, not the deployment branch.
+Users can upload files, share them with individuals or groups, manage permissions, and access their files through a clean dashboard.
 
-**Open the live application:** https://secure-share-brown.vercel.app
+**Deployment status:** The live website is deployed using the `deploy/vercel-cloudinary-neon` branch. The default `main` branch contains the original implementation, which uses local filesystem storage. The deployment branch includes Cloudinary integration and deployment-specific configuration.
+
+**[Visit SecureShare](https://secure-share-brown.vercel.app)**
+
+---
 
 ## Features
 
-### User accounts and authentication
-- Register with a username, email address, and password.
-- Log in using a username and password.
-- Hash passwords with bcrypt before saving them to the database.
-- Authenticate protected API requests with JWT bearer tokens.
-- Protect application pages through frontend route guards.
+- **User Authentication** — Account registration, login, bcrypt password hashing, and JWT-based authentication.
+- **File Management** — Upload, download, search, update, and delete files.
+- **Individual Sharing** — Share files directly with other registered users.
+- **Group Collaboration** — Create groups, add members, and share files with entire groups.
+- **Permission Management** — Grant, update, view, and revoke file permissions.
+- **Dashboard** — View owned files, shared files, and recently uploaded files.
+- **Audit Logging** — Track important file operations and access-management activities.
 
-### File management
-- Upload files through the application.
-- View files owned by the current user.
-- View files shared directly or through groups.
-- Search and filter files by filename.
-- Download files after the backend verifies access.
-- Replace an existing file.
-- Delete files and their associated local storage objects.
-- Enforce a 20 MB maximum size for new uploads.
+---
 
-### Sharing and access control
-- Share files with individual users.
-- Share files with groups.
-- Assign permissions to users and groups.
-- View the permissions currently assigned to a file.
-- Update or revoke user and group permissions.
-- Enforce file access permissions on the backend.
+## Tech Stack
 
-The supported permission values are `READ`, `WRITE`, and `DELETE`.
-
-### Groups
-- Create groups.
-- Add existing users by their SecureShare user ID.
-- View group members.
-- Remove members from a group.
-- Restrict membership management to the group owner.
-
-### Dashboard
-- View counts for owned files and files shared with the user.
-- See recently added files.
-- Navigate to file, shared-file, and group management pages.
-
-### Audit logging
-The backend records key actions such as uploads, downloads, updates, deletions, sharing operations, membership changes, and permission management in an audit-log table.
-
-## Technology Stack
-
-| Area | Technologies |
+| Category | Technologies |
 |---|---|
-| Frontend | React 19, TypeScript |
-| Build tooling | Vite |
-| Styling | Tailwind CSS 4 |
-| UI and animation | Framer Motion, Lucide React |
+| Frontend | React, TypeScript, Vite |
+| Styling | Tailwind CSS |
+| UI & Animation | Framer Motion, Lucide React |
 | Routing | React Router |
-| Backend API | Python, FastAPI |
-| Request/response validation | Pydantic |
-| ORM | SQLAlchemy |
+| Backend | Python, FastAPI |
 | Database | PostgreSQL |
-| Password hashing | bcrypt |
-| Authentication | JSON Web Tokens (PyJWT) |
-| Local file storage (`main`) | Server filesystem |
-| Hosting for live version | Vercel |
-| Hosted database for deployment version | Neon |
-| Hosted file storage for deployment version | Cloudinary |
+| ORM | SQLAlchemy |
+| Validation | Pydantic |
+| Authentication | JWT, bcrypt |
+| Hosting | Vercel |
+| Deployment Database | Neon |
+| Deployment File Storage | Cloudinary |
 
-## Application Architecture
+---
 
-The project is split into a React frontend and a FastAPI backend.
+## Architecture
 
-- **Frontend:** provides registration, login, dashboard, file management, sharing, permissions, and group-management interfaces.
-- **Backend:** exposes REST endpoints, validates input, authenticates users, checks authorization, manages database records, and handles file operations.
-- **PostgreSQL:** stores users, file metadata, groups, memberships, sharing permissions, roles, and audit logs.
-- **Local storage on `main`:** stores uploaded file bytes in the repository-level `storage/` directory. The database stores the corresponding storage path and ownership metadata.
+SecureShare follows a client-server architecture consisting of three primary layers.
 
-### File upload flow in `main`
+**Frontend**
+- Built with React and TypeScript.
+- Handles authentication, file management, sharing, and group interfaces.
+- Communicates with the backend through REST APIs.
+- Uses protected routes for authenticated pages.
 
-1. The user selects a file in the frontend.
-2. The frontend sends the file to the backend as multipart form data.
-3. FastAPI reads the upload, checks the new-upload size limit, and writes the contents to a uniquely named file in `storage/`.
-4. The backend creates a database record containing the original filename, storage path, and owner ID.
-5. The frontend refreshes the file list.
+**Backend**
+- Built using FastAPI.
+- Handles authentication, validation, file operations, and authorization.
+- Enforces file ownership and sharing permissions.
+- Maintains audit logs for important actions.
 
-### File download flow
+**Database**
+- PostgreSQL stores user accounts, file metadata, groups, memberships, and permissions.
+- SQLAlchemy manages database operations.
 
-1. The frontend requests a file by its ID.
-2. The backend checks whether the authenticated user is allowed to read it.
-3. If access is allowed, FastAPI streams the stored file as a download response.
-4. The backend records the download action in the audit log.
+### File Storage
 
-### Sharing and authorization
+The storage implementation differs between branches:
 
-Permissions are stored separately for direct user shares and group shares. For protected file operations, the backend checks file ownership, applicable role permissions, direct user permissions, and group membership/permissions as implemented by the authorization layer.
+| Branch | File Storage |
+|---|---|
+| `main` | Local filesystem |
+| `deploy/vercel-cloudinary-neon` | Cloudinary |
 
-Frontend route guards improve the user experience, but the backend remains responsible for enforcing access to protected resources.
+The deployment branch uses signed direct uploads. The backend generates upload signatures, the browser uploads files directly to Cloudinary, and the backend verifies the uploaded assets before storing their metadata in PostgreSQL.
 
-## Repository Structure
+---
 
-`~`text
+## Permission System
+
+SecureShare supports three permission levels:
+
+| Permission | Access |
+|---|---|
+| `READ` | Download and read files |
+| `WRITE` | Update files; also permits read access |
+| `DELETE` | Delete files |
+
+Permissions can be assigned directly to individual users or through groups.
+
+File owners can manage sharing permissions for their files, while group owners control group membership.
+
+The backend performs authorization checks before allowing protected file operations.
+
+---
+
+## Project Structure
+
+```text
 secure-share/
+│
 ├── backend/
-│   ├── database.py          # PostgreSQL connection and SQLAlchemy sessions
-│   ├── main.py              # FastAPI app and REST API endpoints
-│   ├── models.py            # SQLAlchemy models
-│   ├── schemas.py           # Pydantic request and response schemas
-│   ├── security.py          # Password hashing, JWT, authorization, audit logs
-│   └── requirements.txt     # Python dependencies
+│   ├── database.py
+│   ├── main.py
+│   ├── models.py
+│   ├── schemas.py
+│   ├── security.py
+│   └── requirements.txt
+│
 ├── frontend/
-│   ├── public/              # Static public assets
+│   ├── public/
 │   ├── src/
-│   │   ├── components/      # Reusable UI, file, layout, and permission components
-│   │   ├── hooks/           # Authentication and toast context/hooks
-│   │   ├── pages/           # Dashboard, Files, Shared, Groups, Login, Register
-│   │   ├── routes/          # Protected and public route guards
-│   │   ├── services/        # API, auth, file, group, and permission services
-│   │   ├── types/           # Shared TypeScript types
-│   │   └── utils/           # Formatting and authentication utilities
+│   │   ├── components/
+│   │   ├── hooks/
+│   │   ├── pages/
+│   │   ├── routes/
+│   │   ├── services/
+│   │   ├── types/
+│   │   └── utils/
 │   ├── package.json
 │   └── vite.config.ts
+│
 ├── storage/
-│   └── .gitignore           # Keeps locally uploaded files out of Git
+│   └── .gitignore
+│
 └── README.md
-`~`
+```
+
+---
 
 ## Getting Started
 
-These instructions run the **`main`** branch locally.
+The following instructions are for running the **`main` branch** locally.
 
 ### Prerequisites
 
+Make sure you have the following installed:
+
+- [Node.js](https://nodejs.org/)
+- [Python](https://www.python.org/) (3.10 or newer)
+- [PostgreSQL](https://www.postgresql.org/)
 - Git
-- Node.js and npm (use a version compatible with the Vite version in `frontend/package.json`)
-- Python 3.10 or newer
-- PostgreSQL, either locally or through a hosted PostgreSQL provider
 
-### 1. Clone the repository
+### 1. Clone the Repository
 
-`~`bash
+```bash
 git clone https://github.com/prx0x/secure-share.git
 cd secure-share
 git switch main
-`~`
+```
 
-### 2. Configure the backend
+### 2. Backend Setup
 
-Open a terminal in the repository and move into the backend directory:
+Navigate to the backend directory:
 
-`~`bash
+```bash
 cd backend
+```
+
+Create a virtual environment:
+
+```bash
 python -m venv .venv
-`~`
+```
 
-Activate the virtual environment.
+Activate it:
 
-**Windows PowerShell**
+**Windows:**
+```powershell
+.venv\Scripts\Activate.ps1
+```
 
-`~`powershell
-.\.venv\Scripts\Activate.ps1
-`~`
-
-**Linux / macOS**
-
-`~`bash
+**Linux / macOS:**
+```bash
 source .venv/bin/activate
-`~`
+```
 
-Install the backend dependencies:
+Install dependencies:
 
-`~`bash
+```bash
 pip install -r requirements.txt
-`~`
+```
+
+### 3. Environment Variables
 
 Create a `.env` file inside the `backend/` directory:
 
-`~`dotenv
+```env
 DATABASE_URL=postgresql://USERNAME:PASSWORD@HOST:5432/DATABASE
-JWT_SECRET=replace-with-a-long-random-secret
-`~`
+JWT_SECRET=your-strong-random-secret
+```
 
-Replace the placeholders with your actual PostgreSQL credentials and a strong, randomly generated JWT secret.
+Replace the placeholders with your PostgreSQL credentials and a strong, randomly generated JWT secret.
 
-The backend loads environment variables from this file through `python-dotenv`.
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_SECRET` | Secret used to sign and verify JWTs |
 
-| Variable | Required | Description |
-|---|---|---|
-| `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `JWT_SECRET` | Yes | Secret key used to sign and verify JWTs |
+**Important:** Never commit your `.env` file or expose your credentials publicly.
 
-Do not commit your `.env` file or share these values publicly.
+### 4. Start the Backend
 
-### 3. Start the backend
+Run the following command from the `backend/` directory:
 
-Run the following command from the **`backend/` directory**, with the virtual environment active:
-
-`~`bash
+```bash
 uvicorn main:app --reload --host 127.0.0.1 --port 8000
-`~`
+```
 
-The application creates the database tables on startup through SQLAlchemy's `Base.metadata.create_all`.
+The backend will be available at:
 
-The API will be available locally at:
+- API: `http://127.0.0.1:8000`
+- Swagger Documentation: `http://127.0.0.1:8000/docs`
+- OpenAPI Schema: `http://127.0.0.1:8000/openapi.json`
 
-- API root: http://127.0.0.1:8000/
-- Interactive Swagger documentation: http://127.0.0.1:8000/docs
-- OpenAPI schema: http://127.0.0.1:8000/openapi.json
+The application creates the required database tables on startup.
 
-### 4. Configure the frontend
+### 5. Frontend Setup
 
-Open a second terminal, return to the repository root, and enter the frontend directory:
+Open another terminal and navigate to the frontend directory:
 
-`~`bash
+```bash
 cd frontend
+```
+
+Install dependencies:
+
+```bash
 npm install
-`~`
+```
 
 Create a `.env` file inside `frontend/`:
 
-`~`dotenv
+```env
 VITE_API_BASE_URL=http://127.0.0.1:8000
-`~`
+```
 
-This tells the frontend where the local FastAPI server is running.
+### 6. Start the Frontend
 
-### 5. Start the frontend
-
-From the `frontend/` directory:
-
-`~`bash
+```bash
 npm run dev
-`~`
+```
 
-Open the application at http://localhost:5173.
+Open the application:
+
+**http://localhost:5173**
+
+---
+
+## API Overview
+
+Protected endpoints require a JWT bearer token:
+
+```http
+Authorization: Bearer <access_token>
+```
+
+### Authentication
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/users` | Register a user |
+| POST | `/login` | Authenticate and obtain a token |
+
+### File Management
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/files/upload` | Upload a file |
+| GET | `/files` | List owned and shared files |
+| GET | `/files/{file_id}` | Download a file |
+| PUT | `/files/{file_id}` | Update a file |
+| DELETE | `/files/{file_id}` | Delete a file |
+
+### Sharing & Permissions
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/files/{file_id}/share/user` | Share with a user |
+| POST | `/files/{file_id}/share/group` | Share with a group |
+| GET | `/files/{file_id}/permissions` | View file permissions |
+| DELETE | `/files/{file_id}/share/user` | Revoke user permission |
+| DELETE | `/files/{file_id}/share/group` | Revoke group permission |
+| DELETE | `/files/{file_id}/permissions/user` | Remove user permission |
+| DELETE | `/files/{file_id}/permissions/group` | Remove group permission |
+| PUT | `/files/{file_id}/permissions/user` | Update user permission |
+| PUT | `/files/{file_id}/permissions/group` | Update group permission |
+
+### Group Management
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/groups` | Create a group |
+| GET | `/groups` | List available groups |
+| POST | `/groups/{group_id}/members/{user_id}` | Add a member |
+| GET | `/groups/{group_id}/members` | List group members |
+| DELETE | `/groups/{group_id}/members/{user_id}` | Remove a member |
+
+For complete request and response schemas, visit the interactive Swagger documentation at `/docs` when the backend is running.
+
+---
 
 ## Development Commands
 
-Run frontend commands from the `frontend/` directory.
+Run these commands from the `frontend/` directory.
 
-| Command | Purpose |
+| Command | Description |
 |---|---|
-| `npm run dev` | Start the Vite development server |
-| `npm run build` | Run TypeScript build checks and create the production bundle |
-| `npm run preview` | Preview the built frontend locally |
+| `npm run dev` | Start development server |
+| `npm run build` | Type-check and build the frontend |
+| `npm run preview` | Preview the production build |
 | `npm run lint` | Run Oxlint |
 
-For backend dependency installation, run:
+For backend dependencies:
 
-`~`bash
+```bash
 pip install -r requirements.txt
-`~`
+```
 
-## API Reference
+---
 
-All API routes are served by the FastAPI application. Protected routes require a JWT bearer token in the `Authorization` header:
+## Deployment
 
-`~`http
-Authorization: Bearer <access_token>
-`~`
+The live application is deployed separately from the default development branch.
 
-The main endpoints are listed below.
-
-### Authentication and users
-
-| Method | Endpoint | Description | Auth required |
-|---|---|---|---|
-| `POST` | `/users` | Register a user | No |
-| `POST` | `/login` | Authenticate and receive an access token | No |
-
-### Files
-
-| Method | Endpoint | Description | Auth required |
-|---|---|---|---|
-| `POST` | `/files/upload` | Upload a file using multipart form data | Yes |
-| `GET` | `/files` | List owned and shared files | Yes |
-| `GET` | `/files/{file_id}` | Check access and download a file | Yes |
-| `PUT` | `/files/{file_id}` | Replace a file's contents | Yes |
-| `DELETE` | `/files/{file_id}` | Delete a file | Yes |
-
-### File sharing and permissions
-
-| Method | Endpoint | Description | Auth required |
-|---|---|---|---|
-| `POST` | `/files/{file_id}/share/user` | Share a file with a user | Yes |
-| `POST` | `/files/{file_id}/share/group` | Share a file with a group | Yes |
-| `GET` | `/files/{file_id}/permissions` | List permissions for a file | Yes |
-| `DELETE` | `/files/{file_id}/share/user` | Revoke a user's share permission | Yes |
-| `DELETE` | `/files/{file_id}/share/group` | Revoke a group's share permission | Yes |
-| `DELETE` | `/files/{file_id}/permissions/user` | Remove a user's permission entry | Yes |
-| `DELETE` | `/files/{file_id}/permissions/group` | Remove a group's permission entry | Yes |
-| `PUT` | `/files/{file_id}/permissions/user` | Update a user's permission | Yes |
-| `PUT` | `/files/{file_id}/permissions/group` | Update a group's permission | Yes |
-
-### Groups
-
-| Method | Endpoint | Description | Auth required |
-|---|---|---|---|
-| `POST` | `/groups` | Create a group | Yes |
-| `GET` | `/groups` | List groups owned by or joined by the user | Yes |
-| `POST` | `/groups/{group_id}/members/{user_id}` | Add a user to a group | Yes |
-| `GET` | `/groups/{group_id}/members` | List a group's members | Yes |
-| `DELETE` | `/groups/{group_id}/members/{user_id}` | Remove a user from a group | Yes |
-
-The interactive API documentation at `/docs` exposes the request schemas and response models for the running backend.
-
-## Permission Model
-
-SecureShare defines three permission levels:
-
-| Permission | Intended capability |
+| Component | Deployment |
 |---|---|
-| `READ` | Read/download a file |
-| `WRITE` | Replace/update a file; the backend also accepts WRITE for read access |
-| `DELETE` | Delete a file |
+| Frontend | Vercel |
+| Backend | Vercel |
+| Database | Neon PostgreSQL |
+| File Storage | Cloudinary |
 
-Permissions can be assigned to an individual user or to a group. Group-based access depends on the user's membership in that group.
+### Branch Information
 
-The backend applies additional ownership rules:
+- **`main`** — Original application implementation with local filesystem storage.
+- **`deploy/vercel-cloudinary-neon`** — Deployment-oriented implementation with Cloudinary integration and hosted environment configuration.
 
-- File owners can manage sharing and permission assignments for their files.
-- Group owners can add and remove group members.
-- Users who are neither owners nor authorized recipients cannot access protected files.
+The live website uses the deployment branch:
 
-## File Storage in `main`
+**[https://secure-share-brown.vercel.app](https://secure-share-brown.vercel.app)**
 
-The default branch uses local filesystem storage.
-
-- Uploaded file contents are written under the repository's top-level `storage/` directory.
-- The database stores each file's original name, storage path, owner ID, and creation timestamp.
-- The `storage/.gitignore` file prevents uploaded content from being added to Git.
-- New uploads are limited to 20 MB by the backend upload endpoint.
-
-**Deployment consideration:** local filesystem storage is intended for local development or a persistent server environment. It should not be assumed to work as durable storage on ephemeral/serverless hosting, where local files may not persist across instances or deployments. The deployed website therefore uses the separate deployment branch, which changes the file-storage integration.
-
-## Deployment Branch
-
-The hosted application is maintained separately from the default branch:
-
-- **Default branch:** `main` — original local-storage implementation and local development setup.
-- **Deployment branch:** `deploy/vercel-cloudinary-neon` — deployment-oriented implementation, including Cloudinary-backed private file storage and hosted environment configuration.
-- **Live website:** https://secure-share-brown.vercel.app
-
-The deployment branch uses a signed direct-upload flow: the backend authorizes and signs upload parameters, the browser sends file bytes to Cloudinary, and the backend verifies the uploaded asset before saving its metadata in PostgreSQL.
-
-The backend website/API address is intentionally not listed here. Use the live frontend website link above to access the application.
+---
 
 ## Security Considerations
 
-- Passwords are hashed using bcrypt instead of being stored in plaintext.
-- JWT signing and verification happen on the backend.
-- Protected API operations use bearer-token authentication.
-- File access is checked by the backend before download, update, or deletion.
-- Sharing and membership operations apply ownership checks.
-- Uploaded file data is excluded from Git through the storage directory's ignore rule.
+SecureShare incorporates several security mechanisms:
 
-This repository is a software project and is not a claim of security certification or regulatory compliance. Before using it for sensitive or production-critical files, review the implementation for your threat model and consider adding rate limiting, stronger operational logging and monitoring, backups, malware scanning, and additional input validation.
+- Passwords are hashed using bcrypt.
+- JWTs are used for authenticated API requests.
+- Backend authorization checks protect file operations.
+- File ownership is verified before sharing and permission management.
+- Group membership is controlled by group owners.
+- Deployment uploads use server-generated Cloudinary signatures and private asset delivery.
+
+SecureShare is a software project and does not claim security certification or regulatory compliance. A security review is recommended before using it for sensitive or production-critical data.
+
+---
 
 ## Contributing
 
 Contributions, bug reports, and suggestions are welcome.
 
 1. Fork the repository.
-2. Create a focused feature branch from `main`.
+2. Create a new feature branch from `main`.
 3. Make your changes.
-4. Run the relevant checks locally.
-5. Open a pull request with a clear explanation of the change.
+4. Run the relevant checks.
+5. Submit a pull request with a clear description.
 
-Please do not commit credentials, database connection strings, private uploads, or generated secrets.
+Please do not commit credentials, database URLs, private files, or generated secrets.
+
+---
 
 ## License
 
-No license file is currently present in this repository. Until a license is added, the project should not be assumed to grant permission for reuse, modification, or redistribution.
+No license file is currently included in this repository. Unless a license is added, no explicit permission for reuse, modification, or redistribution is granted.
+
+---
+
+<p align="center">
+  <strong>SecureShare</strong><br>
+  Manage files. Control access. Share securely.
+</p>
